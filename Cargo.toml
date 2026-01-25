@@ -1,0 +1,13 @@
+[package]
+name = "rustdash"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "rustdash"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+fancy-regex = "0.17.0"
+pyo3 = { version = "0.22", features = ["extension-module"] }
+regex = "1.12.2"
