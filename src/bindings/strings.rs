@@ -1,7 +1,9 @@
-use pyo3::prelude::*;
-use crate::core::strings::{StringMode,_capitalize,_upper_case,_lower_case,_trim,_trim_start,_trim_end,_words};
 use crate::bindings::strings_helpers::apply_string_transform;
 use crate::core::strings::to_parse_single;
+use crate::core::strings::{
+    StringMode, _capitalize, _lower_case, _trim, _trim_end, _trim_start, _upper_case, _words,
+};
+use pyo3::prelude::*;
 
 /// Python wrapper for camel_case function.
 /// Accepts either a single string or a list of strings.

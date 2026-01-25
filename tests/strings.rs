@@ -447,7 +447,10 @@ fn test_consecutive_capitals() {
         vec!["https-connection".to_string()]
     );
     assert_eq!(
-        to_parse(vec!["https_connection".to_string()], &StringMode::PascalCase),
+        to_parse(
+            vec!["https_connection".to_string()],
+            &StringMode::PascalCase
+        ),
         vec!["HttpsConnection".to_string()]
     );
 }
@@ -776,7 +779,9 @@ fn test_mixed_formats_in_list() {
 
 // ==================== Capitalize Tests ====================
 
-use rustdash::core::strings::{_capitalize, _upper_case, _lower_case, _trim, _trim_start, _trim_end, _words};
+use rustdash::core::strings::{
+    _capitalize, _lower_case, _trim, _trim_end, _trim_start, _upper_case, _words,
+};
 
 #[test]
 fn test_capitalize_basic() {
@@ -1005,6 +1010,8 @@ fn test_words_tabs_and_newlines() {
 
 #[test]
 fn test_words_mixed_whitespace() {
-    assert_eq!(_words("  hello \t world \n foo  "), vec!["hello", "world", "foo"]);
+    assert_eq!(
+        _words("  hello \t world \n foo  "),
+        vec!["hello", "world", "foo"]
+    );
 }
-
