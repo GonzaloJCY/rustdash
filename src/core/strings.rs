@@ -8,16 +8,8 @@ pub enum StringMode {
     PascalCase,
 }
 
-/// Converts strings to the selected mode. Handles single string or Vec<String>.
-pub fn to_parse(input: Vec<String>, string_mode: &StringMode) -> Vec<String> {
-    input
-        .into_iter()
-        .map(|s| to_parse_single(&s, string_mode))
-        .collect()
-}
-
-/// Converts single string to camelCase
-pub fn to_parse_single(s: &str, string_mode: &StringMode) -> String {
+/// Converts single string to the selected mode
+pub fn to_parse(s: &str, string_mode: &StringMode) -> String {
     if s.is_empty() {
         return String::new();
     }
