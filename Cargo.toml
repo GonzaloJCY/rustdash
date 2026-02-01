@@ -9,7 +9,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 fancy-regex = "0.17.0"
-pyo3 = { version = "0.23", features = ["extension-module"] }
+pyo3 = { version = "0.23", features = ["extension-module", "generate-import-lib"] }
 pythonize = "0.23"
 regex = "1.12.2"
 serde = { version = "1", features = ["derive"] }
