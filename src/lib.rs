@@ -1,5 +1,5 @@
 mod bindings;
 pub mod core;
 
-pub use bindings::rustdash;
+pub use bindings::_rustdash;
 pub use core::*;
