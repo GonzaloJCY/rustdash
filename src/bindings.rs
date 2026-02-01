@@ -1,7 +1,10 @@
 //! Python bindings for rustdash library.
 //! This module organizes all Python-facing functions by category.
 
+mod arrays;
+mod helpers;
 mod numbers;
+mod objects;
 mod strings;
 mod strings_helpers;
 
@@ -33,6 +36,31 @@ pub fn rustdash(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(numbers::sum_by, m)?)?;
     m.add_function(wrap_pyfunction!(numbers::min_by, m)?)?;
     m.add_function(wrap_pyfunction!(numbers::max_by, m)?)?;
+
+    // Register arrays functions
+    m.add_function(wrap_pyfunction!(arrays::chunk, m)?)?;
+    m.add_function(wrap_pyfunction!(arrays::compact, m)?)?;
+    m.add_function(wrap_pyfunction!(arrays::flatten_deep, m)?)?;
+    m.add_function(wrap_pyfunction!(arrays::unique, m)?)?;
+    m.add_function(wrap_pyfunction!(arrays::group_by, m)?)?;
+    m.add_function(wrap_pyfunction!(arrays::map, m)?)?;
+    m.add_function(wrap_pyfunction!(arrays::filter, m)?)?;
+    m.add_function(wrap_pyfunction!(arrays::find, m)?)?;
+    m.add_function(wrap_pyfunction!(arrays::sort_by, m)?)?;
+    m.add_function(wrap_pyfunction!(arrays::reduce, m)?)?;
+    m.add_function(wrap_pyfunction!(arrays::zip, m)?)?;
+    m.add_function(wrap_pyfunction!(arrays::intersection, m)?)?;
+
+    // Register object functions
+    m.add_function(wrap_pyfunction!(objects::get, m)?)?;
+    m.add_function(wrap_pyfunction!(objects::get_all, m)?)?;
+    m.add_function(wrap_pyfunction!(objects::pick, m)?)?;
+    m.add_function(wrap_pyfunction!(objects::omit, m)?)?;
+    m.add_function(wrap_pyfunction!(objects::values, m)?)?;
+    m.add_function(wrap_pyfunction!(objects::keys, m)?)?;
+    m.add_function(wrap_pyfunction!(objects::has, m)?)?;
+    m.add_function(wrap_pyfunction!(objects::has_all, m)?)?;
+    m.add_function(wrap_pyfunction!(objects::merge, m)?)?;
 
     Ok(())
 }
