@@ -1,5 +1,9 @@
 # rustdash
 
+[![PyPI](https://img.shields.io/pypi/v/rustdash)](https://pypi.org/project/rustdash/)
+[![Python](https://img.shields.io/pypi/pyversions/rustdash)](https://pypi.org/project/rustdash/)
+[![License](https://img.shields.io/pypi/l/rustdash)](https://github.com/GonzaloJCY/rustdash/blob/main/LICENSE)
+
 Lodash-inspired utility library for Python, powered by Rust.
 
 `rustdash` provides fast, familiar helper functions for strings, numbers, arrays, and objects. The core logic is written in Rust and exposed to Python via [PyO3](https://pyo3.rs), compiled with [maturin](https://www.maturin.rs).
@@ -123,9 +127,10 @@ _.get_all(data, "users[*].name")           # wildcard expansion
 _.get_all(data, "departments[*].staff[*]") # multiple wildcards
 ```
 
-## Requirements
+## Supported Python versions
 
-- Python >= 3.8
+- CPython 3.8, 3.9, 3.10, 3.11, 3.12, 3.13
+- Pre-built wheels for Linux, macOS, and Windows (3.10+ on Windows)
 
 ## License
 
