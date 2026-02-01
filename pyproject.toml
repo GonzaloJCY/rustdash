@@ -4,10 +4,33 @@ build-backend = "maturin"
 
 [project]
 name = "rustdash"
-requires-python = ">=3.8"
+version = "0.1.0"
+description = "Lodash for Python - blazing fast JSON/array manipulation (Rust-powered)"
+readme = "README.md"
+authors = [{name = "Gonzalo J. Cabanas", email = "gonzalo.cabanas.yuste@gmail.com"}]
+license = {text = "MIT"}
 classifiers = [
     "Programming Language :: Rust",
     "Programming Language :: Python :: Implementation :: CPython",
     "Programming Language :: Python :: Implementation :: PyPy",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
 ]
-dynamic = ["version"]
+requires-python = ">=3.8"
+
+[project.urls]
+Homepage = "https://github.com/gonzalojman/rustdash"
+Repository = "https://github.com/gonzalojman/rustdash"
+Issues = "https://github.com/gonzalojman/rustdash/issues"
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0", "black", "mypy"]
+
+[tool.maturin]
+module-name = "rustdash._rustdash"

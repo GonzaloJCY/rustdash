@@ -1,30 +1,63 @@
-use pyo3::prelude::*;
-use pyo3::types::PyList;
+use crate::bindings::strings_helpers::apply_string_transform;
 use crate::core::strings::to_parse;
-use crate::core::strings::StringMode;
-
-
-
+use crate::core::strings::{
+    StringMode, _capitalize, _lower_case, _trim, _trim_end, _trim_start, _upper_case, _words,
+};
+use pyo3::prelude::*;
 
 /// Python wrapper for camel_case function.
 /// Accepts either a single string or a list of strings.
 #[pyfunction]
 pub fn camel_case(py_input: Bound<'_, PyAny>) -> PyResult<PyObject> {
-    let py = py_input.py();
+    apply_string_transform(py_input, |s| to_parse(s, &StringMode::CamelCase))
+}
 
-    // List case
-    if let Ok(strings) = py_input.extract::<Vec<String>>() {
-        let result = to_parse(strings, StringMode::CamelCase);
-        return Ok(PyList::new_bound(py, &result).to_object(py));
-    }
+#[pyfunction]
+pub fn snake_case(py_input: Bound<'_, PyAny>) -> PyResult<PyObject> {
+    apply_string_transform(py_input, |s| to_parse(s, &StringMode::SnakeCase))
+}
 
-    // Single string case
-    if let Ok(single_str) = py_input.extract::<String>() {
-        let result = to_parse(vec![single_str], StringMode::CamelCase);
-        return Ok(result[0].clone().into_py(py));
-    }
+#[pyfunction]
+pub fn kebab_case(py_input: Bound<'_, PyAny>) -> PyResult<PyObject> {
+    apply_string_transform(py_input, |s| to_parse(s, &StringMode::KebabCase))
+}
 
-    Err(PyErr::new::<pyo3::exceptions::PyTypeError, _>(
-        "Expected str or list of str"
-    ))
+#[pyfunction]
+pub fn pascal_case(py_input: Bound<'_, PyAny>) -> PyResult<PyObject> {
+    apply_string_transform(py_input, |s| to_parse(s, &StringMode::PascalCase))
+}
+
+#[pyfunction]
+pub fn capitalize(py_input: Bound<'_, PyAny>) -> PyResult<PyObject> {
+    apply_string_transform(py_input, |s| _capitalize(s))
+}
+
+#[pyfunction]
+pub fn upper_case(py_input: Bound<'_, PyAny>) -> PyResult<PyObject> {
+    apply_string_transform(py_input, |s| _upper_case(s))
+}
+
+#[pyfunction]
+pub fn lower_case(py_input: Bound<'_, PyAny>) -> PyResult<PyObject> {
+    apply_string_transform(py_input, |s| _lower_case(s))
+}
+
+#[pyfunction]
+pub fn trim(py_input: Bound<'_, PyAny>) -> PyResult<PyObject> {
+    apply_string_transform(py_input, |s| _trim(s))
+}
+
+#[pyfunction]
+pub fn trim_start(py_input: Bound<'_, PyAny>) -> PyResult<PyObject> {
+    apply_string_transform(py_input, |s| _trim_start(s))
+}
+
+#[pyfunction]
+pub fn trim_end(py_input: Bound<'_, PyAny>) -> PyResult<PyObject> {
+    apply_string_transform(py_input, |s| _trim_end(s))
+}
+
+#[pyfunction]
+pub fn words(py_input: Bound<'_, PyAny>) -> PyResult<PyObject> {
+    apply_string_transform(py_input, |s| _words(s).join(" "))
 }
