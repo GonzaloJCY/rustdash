@@ -1,5 +1,4 @@
-// // use rustdash::core::numbers::{max_, max_by, mean, min_, min_by, round, sum_, sum_by};
-use rustdash::core::numbers::{max_, max_by_, mean_, min_, min_by_, round_, sum_, sum_by_};
+use rustdash::core::numbers::{max_, mean_, min_, round_, sum_};
 
 // ==================== sum_ Tests ====================
 #[test]
@@ -31,36 +30,6 @@ fn test_sum_negative_numbers() {
 fn test_sum_floats() {
     assert!((sum_(&[1.0, 2.0, 3.0]) as f64 - 6.0).abs() < f64::EPSILON);
     assert!((sum_(&[0.1, 0.2, 0.3]) as f64 - 0.6).abs() < 1e-10);
-}
-
-// ==================== sum_by Tests ====================
-
-#[test]
-fn test_sum_by_basic() {
-    let items = vec![("a", 1), ("b", 2), ("c", 3)];
-    assert_eq!(sum_by_(&items, |item| item.1), 6);
-}
-
-#[test]
-fn test_sum_by_struct() {
-    #[derive(Debug)]
-    struct Item {
-        n: i32,
-    }
-    let items = vec![Item { n: 1 }, Item { n: 2 }, Item { n: 3 }];
-    assert_eq!(sum_by_(&items, |item| item.n), 6);
-}
-
-#[test]
-fn test_sum_by_empty() {
-    let items: Vec<(String, i32)> = vec![];
-    assert_eq!(sum_by_(&items, |item| item.1), 0);
-}
-
-#[test]
-fn test_sum_by_string_lengths() {
-    let words = vec!["hello", "world", "rust"];
-    assert_eq!(sum_by_(&words, |w| w.len() as i32), 14);
 }
 
 // ==================== max_ Tests ====================
@@ -101,36 +70,6 @@ fn test_max_floats() {
     assert_eq!(max_(&[-1.0, -0.5, -2.0]), Some(-0.5));
 }
 
-// ==================== max_by Tests ====================
-
-#[test]
-fn test_max_by_basic() {
-    let items = vec![("a", 1), ("b", 5), ("c", 3)];
-    assert_eq!(max_by_(&items, |item| item.1), Some(&("b", 5)));
-}
-
-#[test]
-fn test_max_by_struct() {
-    #[derive(Debug, PartialEq)]
-    struct Item {
-        v: i32,
-    }
-    let items = vec![Item { v: 1 }, Item { v: 5 }, Item { v: 3 }];
-    assert_eq!(max_by_(&items, |item| item.v), Some(&Item { v: 5 }));
-}
-
-#[test]
-fn test_max_by_empty() {
-    let items: Vec<(String, i32)> = vec![];
-    assert_eq!(max_by_(&items, |item| item.1), None);
-}
-
-#[test]
-fn test_max_by_string_length() {
-    let words = vec!["hi", "hello", "hey"];
-    assert_eq!(max_by_(&words, |w| w.len()), Some(&"hello"));
-}
-
 // ==================== min_ Tests ====================
 
 #[test]
@@ -167,36 +106,6 @@ fn test_min_duplicates() {
 fn test_min_floats() {
     assert_eq!(min_(&[1.5, 2.5, 0.5]), Some(0.5));
     assert_eq!(min_(&[-1.0, -0.5, -2.0]), Some(-2.0));
-}
-
-// ==================== min_by Tests ====================
-
-#[test]
-fn test_min_by_basic() {
-    let items = vec![("a", 3), ("b", 1), ("c", 5)];
-    assert_eq!(min_by_(&items, |item| item.1), Some(&("b", 1)));
-}
-
-#[test]
-fn test_min_by_struct() {
-    #[derive(Debug, PartialEq)]
-    struct Item {
-        v: i32,
-    }
-    let items = vec![Item { v: 3 }, Item { v: 1 }, Item { v: 5 }];
-    assert_eq!(min_by_(&items, |item| item.v), Some(&Item { v: 1 }));
-}
-
-#[test]
-fn test_min_by_empty() {
-    let items: Vec<(String, i32)> = vec![];
-    assert_eq!(min_by_(&items, |item| item.1), None);
-}
-
-#[test]
-fn test_min_by_string_length() {
-    let words = vec!["hello", "hi", "hey"];
-    assert_eq!(min_by_(&words, |w| w.len()), Some(&"hi"));
 }
 
 // ==================== mean Tests ====================

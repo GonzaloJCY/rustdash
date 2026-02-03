@@ -2,7 +2,6 @@
 //! This module organizes all Python-facing functions by category.
 
 mod arrays;
-mod helpers;
 mod numbers;
 mod objects;
 mod strings;

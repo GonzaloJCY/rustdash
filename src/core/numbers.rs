@@ -7,13 +7,6 @@ where
     iter.iter().copied().sum()
 }
 
-pub fn sum_by_<T, U>(iter: &[T], f: impl Fn(&T) -> U) -> U
-where
-    U: std::iter::Sum + Copy,
-{
-    iter.iter().map(f).sum()
-}
-
 pub fn max_<T>(slice: &[T]) -> Option<T>
 where
     T: PartialOrd + Copy,
@@ -22,15 +15,6 @@ where
         .iter()
         .copied()
         .max_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
-}
-
-pub fn max_by_<T, U>(slice: &[T], f: impl Fn(&T) -> U) -> Option<&T>
-where
-    U: Copy + PartialOrd,
-{
-    slice
-        .iter()
-        .max_by(|a, b| f(a).partial_cmp(&f(b)).unwrap_or(std::cmp::Ordering::Equal))
 }
 
 pub fn min_<T>(slice: &[T]) -> Option<T>
@@ -42,15 +26,6 @@ where
         .copied()
         .min_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
 }
-pub fn min_by_<T, U>(slice: &[T], f: impl Fn(&T) -> U) -> Option<&T>
-where
-    U: Copy + PartialOrd,
-{
-    slice
-        .iter()
-        .min_by(|a, b| f(a).partial_cmp(&f(b)).unwrap_or(std::cmp::Ordering::Equal))
-}
-
 pub fn mean_<T>(slice: &[T]) -> f64
 where
     T: std::convert::Into<f64> + std::iter::Sum + Copy,

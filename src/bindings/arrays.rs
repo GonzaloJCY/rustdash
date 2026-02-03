@@ -1,193 +1,178 @@
-use super::helpers::{extract_vec, py_to_value, value_to_py};
-use crate::core::arrays::{
-    chunk as core_chunk, compact as core_compact, filter as core_filter, find as core_find,
-    flatten_deep as core_flatten_deep, group_by as core_group_by,
-    intersection as core_intersection, map as core_map, reduce as core_reduce,
-    sort_by as core_sort_by, unique as core_unique, zip as core_zip,
-};
 use pyo3::prelude::*;
-use pyo3::types::PyDict;
-use serde_json::Value;
+use pyo3::types::{PyDict, PyList};
+use std::collections::HashMap;
 
-// ─── Helper types ────────────────────────────────────────────────────────────
+// ─── Helpers ────────────────────────────────────────────────────────────────
 
-/// Wrapper to make serde_json::Value implement Hash (needed for unique / group_by).
-/// Hashing is done via the canonical JSON string representation.
-#[derive(Clone, PartialEq, Eq)]
-struct HashableValue(Value);
-
-impl std::hash::Hash for HashableValue {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        serde_json::to_string(&self.0)
-            .unwrap_or_default()
-            .hash(state);
-    }
-}
-
-/// Wrapper to make serde_json::Value implement Ord (needed for sort_by).
-/// Numbers are compared numerically; strings lexicographically; other types are
-/// treated as equal.
-#[derive(Clone, PartialEq, Eq)]
-struct OrdValue(Value);
-
-impl PartialOrd for OrdValue {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl Ord for OrdValue {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        match (&self.0, &other.0) {
-            (Value::Number(a), Value::Number(b)) => {
-                let fa = a.as_f64().unwrap_or(0.0);
-                let fb = b.as_f64().unwrap_or(0.0);
-                fa.partial_cmp(&fb).unwrap_or(std::cmp::Ordering::Equal)
-            }
-            (Value::String(a), Value::String(b)) => a.cmp(b),
-            _ => std::cmp::Ordering::Equal,
+/// Recursively flatten nested lists into a flat Vec<PyObject>.
+fn flatten_recursive(obj: &Bound<'_, PyAny>, result: &mut Vec<PyObject>) -> PyResult<()> {
+    if let Ok(list) = obj.downcast::<PyList>() {
+        for item in list.iter() {
+            flatten_recursive(&item, result)?;
         }
+    } else {
+        result.push(obj.clone().unbind());
     }
+    Ok(())
 }
 
 // ─── Python wrappers ─────────────────────────────────────────────────────────
 
-/// Python wrapper for chunk function.
 #[pyfunction]
 pub fn chunk(py_input: Bound<'_, PyAny>, size: usize) -> PyResult<PyObject> {
     let py = py_input.py();
-    let vec = extract_vec(&py_input)?;
-    let result = core_chunk(&vec, size);
-    value_to_py(py, &Value::Array(result.into_iter().map(Value::Array).collect()))
+    let list = py_input.downcast::<PyList>()?;
+    let items: Vec<PyObject> = list.iter().map(|x| x.unbind()).collect();
+
+    let result: Vec<PyObject> = items
+        .chunks(size)
+        .map(|c| PyList::new_bound(py, c).into())
+        .collect();
+
+    Ok(PyList::new_bound(py, &result).into())
 }
 
-/// Python wrapper for compact function.
-/// Removes null (None) values from the list.
 #[pyfunction]
 pub fn compact(py_input: Bound<'_, PyAny>) -> PyResult<PyObject> {
     let py = py_input.py();
-    let vec = extract_vec(&py_input)?;
-    let options: Vec<Option<Value>> = vec
-        .into_iter()
-        .map(|v| if v.is_null() { None } else { Some(v) })
+    let list = py_input.downcast::<PyList>()?;
+    let result: Vec<PyObject> = list
+        .iter()
+        .filter(|item| !item.is_none())
+        .map(|item| item.unbind())
         .collect();
-    let result = core_compact(&options);
-    value_to_py(py, &Value::Array(result))
+    Ok(PyList::new_bound(py, &result).into())
 }
 
-/// Python wrapper for flatten_deep function.
 #[pyfunction]
 pub fn flatten_deep(py_input: Bound<'_, PyAny>) -> PyResult<PyObject> {
     let py = py_input.py();
-    let vec: Vec<Vec<Value>> = pythonize::depythonize(&py_input)
-        .map_err(|e| pyo3::exceptions::PyTypeError::new_err(format!("Expected nested list: {e}")))?;
-    let result = core_flatten_deep(&vec);
-    value_to_py(py, &Value::Array(result))
+    let mut result = Vec::new();
+    flatten_recursive(&py_input, &mut result)?;
+    Ok(PyList::new_bound(py, &result).into())
 }
 
-/// Python wrapper for unique function.
 #[pyfunction]
 pub fn unique(py_input: Bound<'_, PyAny>) -> PyResult<PyObject> {
     let py = py_input.py();
-    let vec = extract_vec(&py_input)?;
-    let hashable: Vec<HashableValue> = vec.into_iter().map(HashableValue).collect();
-    let result: Vec<Value> = core_unique(&hashable).into_iter().map(|hv| hv.0).collect();
-    value_to_py(py, &Value::Array(result))
+
+    // Fast path: integer list
+    if let Ok(ints) = py_input.extract::<Vec<i64>>() {
+        let mut seen = std::collections::HashSet::new();
+        let result: Vec<i64> = ints.into_iter().filter(|x| seen.insert(*x)).collect();
+        return Ok(PyList::new_bound(py, &result).into());
+    }
+
+    // Fast path: string list
+    if let Ok(strings) = py_input.extract::<Vec<String>>() {
+        let mut seen = std::collections::HashSet::new();
+        let result: Vec<String> = strings
+            .into_iter()
+            .filter(|x| seen.insert(x.clone()))
+            .collect();
+        return Ok(PyList::new_bound(py, &result).into());
+    }
+
+    // Fallback: generic Python objects using hash/eq
+    let list = py_input.downcast::<PyList>()?;
+    let mut buckets: HashMap<isize, Vec<PyObject>> = HashMap::new();
+    let mut result: Vec<PyObject> = Vec::new();
+
+    for item in list.iter() {
+        let hash = item.hash()?;
+        let bucket = buckets.entry(hash).or_default();
+        let is_dup = bucket
+            .iter()
+            .any(|existing| item.eq(existing.bind(py)).unwrap_or(false));
+        if !is_dup {
+            bucket.push(item.clone().unbind());
+            result.push(item.unbind());
+        }
+    }
+
+    Ok(PyList::new_bound(py, &result).into())
 }
 
-/// Python wrapper for group_by function.
 #[pyfunction]
 pub fn group_by(py_input: Bound<'_, PyAny>, py_func: Bound<'_, PyAny>) -> PyResult<PyObject> {
     let py = py_input.py();
-    let vec = extract_vec(&py_input)?;
+    let list = py_input.downcast::<PyList>()?;
+    let result = PyDict::new_bound(py);
 
-    if vec.is_empty() {
-        let dict = PyDict::new_bound(py);
-        return Ok(dict.into());
+    for item in list.iter() {
+        let key = py_func.call1((&item,))?;
+        if let Ok(Some(existing)) = result.get_item(&key) {
+            let existing_list = existing.downcast::<PyList>()?;
+            existing_list.append(&item)?;
+        } else {
+            let new_list = PyList::new_bound(py, &[item.unbind()]);
+            result.set_item(&key, new_list)?;
+        }
     }
 
-    let result = core_group_by(&vec, |x: &Value| -> HashableValue {
-        let py_x = value_to_py(py, x).unwrap();
-        let py_key = py_func.call1((py_x,)).unwrap();
-        HashableValue(py_to_value(&py_key).unwrap())
-    });
-
-    let dict = PyDict::new_bound(py);
-    for (key, values) in result {
-        let py_key = value_to_py(py, &key.0)?;
-        let py_values: Vec<PyObject> = values
-            .iter()
-            .map(|v| value_to_py(py, v).unwrap())
-            .collect();
-        dict.set_item(py_key, py_values)?;
-    }
-    Ok(dict.into())
+    Ok(result.into())
 }
 
-/// Python wrapper for map function.
 #[pyfunction]
 pub fn map(py_input: Bound<'_, PyAny>, py_func: Bound<'_, PyAny>) -> PyResult<PyObject> {
     let py = py_input.py();
-    let vec = extract_vec(&py_input)?;
-    let result: Vec<Value> = core_map(&vec, |x: &Value| -> Value {
-        let py_x = value_to_py(py, x).unwrap();
-        let py_result = py_func.call1((py_x,)).unwrap();
-        py_to_value(&py_result).unwrap()
-    });
-    value_to_py(py, &Value::Array(result))
+    let list = py_input.downcast::<PyList>()?;
+    let mut result = Vec::with_capacity(list.len());
+    for item in list.iter() {
+        let mapped = py_func.call1((&item,))?;
+        result.push(mapped.unbind());
+    }
+    Ok(PyList::new_bound(py, &result).into())
 }
 
-/// Python wrapper for filter function.
 #[pyfunction]
 pub fn filter(py_input: Bound<'_, PyAny>, py_func: Bound<'_, PyAny>) -> PyResult<PyObject> {
     let py = py_input.py();
-    let vec = extract_vec(&py_input)?;
-    let result: Vec<Value> = core_filter(&vec, |x: &Value| -> bool {
-        let py_x = value_to_py(py, x).unwrap();
-        py_func.call1((py_x,)).unwrap().extract::<bool>().unwrap()
-    })
-    .into_iter()
-    .cloned()
-    .collect();
-    value_to_py(py, &Value::Array(result))
+    let list = py_input.downcast::<PyList>()?;
+    let mut result = Vec::new();
+    for item in list.iter() {
+        let keep: bool = py_func.call1((&item,))?.extract()?;
+        if keep {
+            result.push(item.unbind());
+        }
+    }
+    Ok(PyList::new_bound(py, &result).into())
 }
 
-/// Python wrapper for find function.
 #[pyfunction]
 pub fn find(py_input: Bound<'_, PyAny>, py_func: Bound<'_, PyAny>) -> PyResult<PyObject> {
     let py = py_input.py();
-    let vec = extract_vec(&py_input)?;
-    match core_find(&vec, |x: &Value| -> bool {
-        let py_x = value_to_py(py, x).unwrap();
-        py_func.call1((py_x,)).unwrap().extract::<bool>().unwrap()
-    }) {
-        Some(val) => value_to_py(py, val),
-        None => Ok(py.None()),
+    let list = py_input.downcast::<PyList>()?;
+    for item in list.iter() {
+        let matches: bool = py_func.call1((&item,))?.extract()?;
+        if matches {
+            return Ok(item.unbind());
+        }
     }
+    Ok(py.None())
 }
 
-/// Python wrapper for sort_by function.
 #[pyfunction]
 pub fn sort_by(py_input: Bound<'_, PyAny>, py_func: Bound<'_, PyAny>) -> PyResult<PyObject> {
     let py = py_input.py();
-    let vec = extract_vec(&py_input)?;
+    let list = py_input.downcast::<PyList>()?;
 
-    if vec.is_empty() {
-        return value_to_py(py, &Value::Array(vec![]));
+    let mut items: Vec<(PyObject, PyObject)> = Vec::with_capacity(list.len());
+    for item in list.iter() {
+        let key = py_func.call1((&item,))?;
+        items.push((item.unbind(), key.unbind()));
     }
 
-    let result: Vec<Value> = core_sort_by(&vec, |x: &Value| -> OrdValue {
-        let py_x = value_to_py(py, x).unwrap();
-        let py_key = py_func.call1((py_x,)).unwrap();
-        OrdValue(py_to_value(&py_key).unwrap())
-    })
-    .into_iter()
-    .cloned()
-    .collect();
-    value_to_py(py, &Value::Array(result))
+    items.sort_by(|a, b| {
+        let a_key = a.1.bind(py);
+        let b_key = b.1.bind(py);
+        a_key.compare(b_key).unwrap_or(std::cmp::Ordering::Equal)
+    });
+
+    let result: Vec<PyObject> = items.into_iter().map(|(item, _)| item).collect();
+    Ok(PyList::new_bound(py, &result).into())
 }
 
-/// Python wrapper for reduce function.
 #[pyfunction]
 pub fn reduce(
     py_input: Bound<'_, PyAny>,
@@ -195,41 +180,87 @@ pub fn reduce(
     initial: PyObject,
 ) -> PyResult<PyObject> {
     let py = py_input.py();
-    let vec = extract_vec(&py_input)?;
-    let init_value = py_to_value(&initial.bind(py))?;
-
-    let result = core_reduce(
-        &vec,
-        |acc: Value, x: &Value| -> Value {
-            let py_acc = value_to_py(py, &acc).unwrap();
-            let py_x = value_to_py(py, x).unwrap();
-            let py_result = py_func.call1((py_acc, py_x)).unwrap();
-            py_to_value(&py_result).unwrap()
-        },
-        init_value,
-    );
-    value_to_py(py, &result)
+    let list = py_input.downcast::<PyList>()?;
+    let mut acc = initial;
+    for item in list.iter() {
+        acc = py_func.call1((acc.bind(py), &item))?.unbind();
+    }
+    Ok(acc)
 }
 
-/// Python wrapper for zip function.
 #[pyfunction]
 pub fn zip(py_a: Bound<'_, PyAny>, py_b: Bound<'_, PyAny>) -> PyResult<PyObject> {
     let py = py_a.py();
-    let a = extract_vec(&py_a)?;
-    let b = extract_vec(&py_b)?;
-    let result = core_zip(&a, &b);
+    let list_a = py_a.downcast::<PyList>()?;
+    let list_b = py_b.downcast::<PyList>()?;
 
-    // Convert Vec<(Value, Value)> to a Python list of two-element lists.
-    let py_list: Vec<Vec<Value>> = result.into_iter().map(|(x, y)| vec![x, y]).collect();
-    value_to_py(py, &Value::Array(py_list.into_iter().map(Value::Array).collect()))
+    let len = std::cmp::min(list_a.len(), list_b.len());
+    let mut result = Vec::with_capacity(len);
+    for i in 0..len {
+        let a = list_a.get_item(i)?;
+        let b = list_b.get_item(i)?;
+        let pair = PyList::new_bound(py, &[a.unbind(), b.unbind()]);
+        result.push(pair.into_any().unbind());
+    }
+    Ok(PyList::new_bound(py, &result).into())
 }
 
-/// Python wrapper for intersection function.
 #[pyfunction]
 pub fn intersection(py_a: Bound<'_, PyAny>, py_b: Bound<'_, PyAny>) -> PyResult<PyObject> {
     let py = py_a.py();
-    let a = extract_vec(&py_a)?;
-    let b = extract_vec(&py_b)?;
-    let result = core_intersection(&a, &b);
-    value_to_py(py, &Value::Array(result))
+
+    // Fast path: integers
+    if let (Ok(a), Ok(b)) = (py_a.extract::<Vec<i64>>(), py_b.extract::<Vec<i64>>()) {
+        let set_b: std::collections::HashSet<i64> = b.into_iter().collect();
+        let mut seen = std::collections::HashSet::new();
+        let result: Vec<i64> = a
+            .into_iter()
+            .filter(|x| set_b.contains(x) && seen.insert(*x))
+            .collect();
+        return Ok(PyList::new_bound(py, &result).into());
+    }
+
+    // Fallback: generic using Python hash/eq
+    let list_a = py_a.downcast::<PyList>()?;
+    let list_b = py_b.downcast::<PyList>()?;
+
+    // Build lookup from b
+    let mut b_buckets: HashMap<isize, Vec<PyObject>> = HashMap::new();
+    for item in list_b.iter() {
+        let hash = item.hash()?;
+        b_buckets.entry(hash).or_default().push(item.unbind());
+    }
+
+    let mut seen: HashMap<isize, Vec<PyObject>> = HashMap::new();
+    let mut result: Vec<PyObject> = Vec::new();
+
+    for item in list_a.iter() {
+        let hash = item.hash()?;
+
+        // Check if in b
+        let in_b = b_buckets
+            .get(&hash)
+            .map(|bucket| {
+                bucket
+                    .iter()
+                    .any(|b_item| item.eq(b_item.bind(py)).unwrap_or(false))
+            })
+            .unwrap_or(false);
+
+        if !in_b {
+            continue;
+        }
+
+        // Dedup
+        let seen_bucket = seen.entry(hash).or_default();
+        let is_dup = seen_bucket
+            .iter()
+            .any(|existing| item.eq(existing.bind(py)).unwrap_or(false));
+        if !is_dup {
+            seen_bucket.push(item.clone().unbind());
+            result.push(item.unbind());
+        }
+    }
+
+    Ok(PyList::new_bound(py, &result).into())
 }
