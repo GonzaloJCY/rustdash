@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "rustdash"
-version = "1.0.0"
+version = "1.0.1"
 description = "Lodash for Python - blazing fast JSON/array manipulation (Rust-powered)"
 readme = "README.md"
 authors = [{name = "Gonzalo J. Cabanas", email = "gonzalo.cabanas.yuste@gmail.com"}]
